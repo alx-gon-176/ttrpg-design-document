@@ -1,0 +1,6 @@
+# IONIDE
+/.ionide
+# PAKET
+/.paket
+/packages
+/paket-files
