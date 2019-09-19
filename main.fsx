@@ -575,59 +575,67 @@ List.init 4 (fun i -> List.replicate (i + 1) roll)
 open MathNet.Numerics.Statistics
 open FSharp.Plotly
 
-let _3d8_choose_min_distribution =
-    List.init 10000 (fun _ -> [d 8; d 8; d 8])
-    |> List.map (Roll.chooseMin >> Roll.throw)
-    |> Chart.Histogram
-
-let _3d6_choose_min_distribution =
-    List.init 10000 (fun _ -> [d 6; d 6; d 6])
-    |> List.map (Roll.chooseMin >> Roll.throw)
-    |> Chart.Histogram
-
-let _3d8_sniper_ability_check_distribution_dif2 =
-    List.init 10000 (fun _ -> 
-        if Roll.throw (d 8) > 2 then
-            [d 8; d 8] |> Roll.chooseMin |> Roll.throw
-        else
-            [d 8; d 8; d 8] |> Roll.chooseMin |> Roll.throw
-    )    
-    |> Chart.Histogram
-
-let _2d8_choose_min_distribution =
-    List.init 10000 (fun _ -> [d 8; d 8;])
-    |> List.map (Roll.chooseMin >> Roll.throw)
-    |> Chart.Histogram
-
-
-_3d8_choose_min_distribution
-|> Chart.SaveHtmlAs "./_3d8_choose_min_distribution"
-
-_3d8_sniper_ability_check_distribution_dif2
-|> Chart.SaveHtmlAs "./_3d8_sniper_ability_check_distribution_dif2"
-
-
-[
-    _3d8_choose_min_distribution
-    _3d8_sniper_ability_check_distribution_dif2
-    _2d8_choose_min_distribution
-    _3d6_choose_min_distribution
-]
-|> Chart.Combine
-|> Chart.SaveHtmlAs "./test"
-
 let _mdn_choose_min_distribution m n =
     List.init 10000 (fun _ -> List.replicate m (d n))
     |> List.map (Roll.chooseMin >> Roll.throw)
     |> Chart.Histogram
 
+let aggregateDistr (l : int list) =
+    let cnt = List.length l
+    l
+    |> List.groupBy id
+    |> List.sortBy fst
+    |> List.fold 
+        (fun ((j, s)::tail) (i, items) ->
+            (i, s + List.length items)::(j, s)::tail
+        ) [(0, 0)]
+    |> List.map (fun (i, x) -> i, float (cnt - x) / float cnt)    
+    
+
 [
-    _mdn_choose_min_distribution 2 4
-    _mdn_choose_min_distribution 2 6
-    _mdn_choose_min_distribution 2 8
-    _mdn_choose_min_distribution 2 10
-    _mdn_choose_min_distribution 2 12
-    _mdn_choose_min_distribution 2 20
+    (List.init 10000 (fun _ -> d 20)
+        |> List.map (Roll.throw)
+        |> aggregateDistr
+        |> Chart.Line
+        |> Chart.withTraceName "d20"
+    )
+
+    (List.init 10000 (fun _ -> Roll.avg [d 20; d 20])
+        |> List.map (Roll.throw)
+        |> aggregateDistr
+        |> Chart.Line
+        |> Chart.withTraceName "Avg 2d20"
+    )
+
+    (List.init 10000 (fun _ -> Roll.avg [d 20; d 20; d 20])
+        |> List.map (Roll.throw)
+        |> aggregateDistr
+        |> Chart.Line
+        |> Chart.withTraceName "Avg 3d20"
+    )
+
+    (List.init 10000 (fun _ -> Roll.chooseMax [d 20; d 20])
+        |> List.map (Roll.throw)
+        |> aggregateDistr
+        |> Chart.Line
+        |> Chart.withTraceName "Max 2d20"
+    )
+
+    (List.init 10000 (fun _ -> Roll.chooseMin [d 20; d 20])
+        |> List.map (Roll.throw)
+        |> aggregateDistr
+        |> Chart.Line
+        |> Chart.withTraceName "Min 2d20"
+    )
+
+    (List.init 10000 (fun _ -> Roll.avg [Roll.chooseMin [d 20; d 20]; Roll.chooseMin [d 20; d 20]])
+        |> List.map (Roll.throw)
+        |> aggregateDistr
+        |> Chart.Line
+        |> Chart.withTraceName "Avg (Min 2d20, Min 2d20)"
+    )
 ]
-|> Chart.Combine
-|> Chart.SaveHtmlAs "./test"
+//|> Chart.
+|> Chart.Stack(Columns=2,Space=0.15)
+//|> Chart.Combine
+|> Chart.SaveHtmlAs "d20s"
